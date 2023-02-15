@@ -1,0 +1,22 @@
+{
+    "name": "saltid/lumen-repository",
+    "description": "Repository pattern for Lumen.",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "SaltId\\LumenRepository\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Yulius Ardian Febrianto",
+            "email": "yulius.febrianto@salt.co.id"
+        }
+    ],
+    "require": {
+        "php": "^8.0",
+        "laravel/lumen-framework": "^9.0",
+        "league/fractal": "^0.20.1"
+    }
+}
