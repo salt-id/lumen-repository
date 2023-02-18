@@ -3,9 +3,8 @@
 namespace SaltId\LumenRepository\Repositories;
 
 use Illuminate\Database\Eloquent\{Collection, Model, Builder};
-use Laravel\Lumen\Application;
-use Laravel\Lumen\Http\Request;
 use SaltId\LumenRepository\Contracts\{CriteriaInterface, RepositoryCriteriaInterface, RepositoryInterface};
+use SaltId\LumenRepository\Criteria\RequestCriteria;
 use SaltId\LumenRepository\Exceptions\ModelNotFoundException;
 
 abstract class AbstractRepository implements RepositoryInterface, RepositoryCriteriaInterface
@@ -14,11 +13,6 @@ abstract class AbstractRepository implements RepositoryInterface, RepositoryCrit
      * @var Builder|Model $model
      */
     protected Builder|Model $model;
-
-    /**
-     * @var Request|Application|mixed $request
-     */
-    protected Request $request;
 
     /**
      * @var Collection $criteria
@@ -30,15 +24,20 @@ abstract class AbstractRepository implements RepositoryInterface, RepositoryCrit
      */
     protected bool $skipCriteria = false;
 
+    /**
+     * @param Model $model
+     */
     public function __construct(Model $model)
     {
         $this->model = $model;
         $this->criteria = new Collection();
-        $this->request = app('request');
 
         $this->boot();
     }
 
+    /**
+     * @return void
+     */
     public function boot(): void
     {
         $criteria = $this->getCriteria() ?? [];
@@ -56,6 +55,8 @@ abstract class AbstractRepository implements RepositoryInterface, RepositoryCrit
 
             $this->pushCriteria($criteriaInstance);
         }
+
+        $this->pushCriteria(new RequestCriteria());
     }
 
     /**
@@ -80,8 +81,6 @@ abstract class AbstractRepository implements RepositoryInterface, RepositoryCrit
     public function paginate(int $limit = 5, array $columns = ['*'])
     {
         $this->applyCriteria();
-
-        $limit = (int)$this->request->query->get('limit') ?: $limit;
 
         return $this->model->paginate($limit, $columns)->appends(['limit' => $limit]);
     }
@@ -132,15 +131,31 @@ abstract class AbstractRepository implements RepositoryInterface, RepositoryCrit
     {
         $this->applyCriteria();
 
-        return $this->model->where($where);
+        return $this->model->where($where)->get($columns);
     }
 
     /** @inheritDoc */
-    public function findWhereIn(string $field, array $values)
+    public function findWhereIn(string $field, array $values, array $columns = ['*'])
     {
         $this->applyCriteria();
 
-        return $this->model->whereIn($field, $values);
+        return $this->model->whereIn($field, $values)->get($columns);
+    }
+
+    /** @inheritDoc */
+    public function findWhereNotIn(string $field, array $where, array $columns = ['*'])
+    {
+        $this->applyCriteria();
+
+        return $this->model->whereNotIn($field, $where)->get($columns);
+    }
+
+    /** @inheritDoc */
+    public function findWhereBetween(string $field, array $where, array $columns = ['*'])
+    {
+        $this->applyCriteria();
+
+        return $this->model->whereBetween($field, $where)->get($columns);
     }
 
     /** @inheritDoc */
@@ -162,6 +177,11 @@ abstract class AbstractRepository implements RepositoryInterface, RepositoryCrit
         return $model;
     }
 
+    public function deleteWhere(array $where)
+    {
+        return $this->model->where($where)->delete();
+    }
+
     /**
      * @inheritDoc
      * @throws ModelNotFoundException
@@ -173,6 +193,14 @@ abstract class AbstractRepository implements RepositoryInterface, RepositoryCrit
         $model->update($attributes);
 
         return $model;
+    }
+
+    /** @inheritDoc */
+    public function orderBy(string $column, string $direction = 'ASC')
+    {
+        $this->model = $this->model->orderBy($column, $direction);
+
+        return $this;
     }
 
     /** @inheritDoc */
@@ -232,7 +260,9 @@ abstract class AbstractRepository implements RepositoryInterface, RepositoryCrit
     /** @inheritDoc */
     public function getByCriteria(CriteriaInterface $criteria)
     {
-        // TODO: Implement getByCriteria() method.
+        $this->model = $criteria->apply($this->model, $this);
+
+        return $this->model->get();
     }
 
     /** @inheritDoc */

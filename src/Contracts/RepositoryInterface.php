@@ -67,9 +67,28 @@ interface RepositoryInterface
      *
      * @param string $field
      * @param array $values
+     * @param array $columns
+     */
+    public function findWhereIn(string $field, array $values, array $columns = ['*']);
+
+    /**
+     * Find data by excluding multiple values in one field.
+     *
+     * @param string $field
+     * @param array $where
+     * @param array $columns
      *
      */
-    public function findWhereIn(string $field, array $values);
+    public function findWhereNotIn(string $field, array $where, array $columns = ['*']);
+
+    /**
+     * Find data by between values in one field
+     *
+     * @param string $field
+     * @param array $where
+     * @param array $columns
+     */
+    public function findWhereBetween(string $field, array $where, array $columns = ['*']);
 
     /**
      * Save a new entity in repository.
@@ -88,6 +107,13 @@ interface RepositoryInterface
     public function delete(int $id);
 
     /**
+     * Delete multiple entities by given criteria.
+     *
+     * @param array $where
+     */
+    public function deleteWhere(array $where);
+
+    /**
      * Update an entity in repository by id.
      *
      * @param array $attributes
@@ -95,4 +121,12 @@ interface RepositoryInterface
      *
      */
     public function update(array $attributes, int $id);
+
+    /**
+     * Set the "orderBy" value of the query.
+     *
+     * @param string $column
+     * @param string $direction
+     */
+    public function orderBy(string $column, string $direction = 'ASC');
 }
