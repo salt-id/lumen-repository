@@ -205,7 +205,7 @@ abstract class AbstractRepository implements RepositoryInterface, RepositoryCrit
      */
     public function delete(int $id)
     {
-        $model = $this->find($id);
+        $model = $this->model->find($id);
 
         if (!$model) {
             throw new ModelNotFoundException();
