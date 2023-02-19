@@ -3,7 +3,11 @@
 namespace SaltId\LumenRepository\Repositories;
 
 use Illuminate\Database\Eloquent\{Collection, Model, Builder};
-use SaltId\LumenRepository\Contracts\{CriteriaInterface, RepositoryCriteriaInterface, RepositoryInterface};
+use SaltId\LumenRepository\Contracts\{CriteriaInterface,
+    PresenterInterface,
+    RepositoryCriteriaInterface,
+    RepositoryInterface};
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use SaltId\LumenRepository\Criteria\RequestCriteria;
 use SaltId\LumenRepository\Exceptions\ModelNotFoundException;
 
@@ -25,12 +29,23 @@ abstract class AbstractRepository implements RepositoryInterface, RepositoryCrit
     protected bool $skipCriteria = false;
 
     /**
+     * @var PresenterInterface $presenter
+     */
+    protected PresenterInterface $presenter;
+
+    /**
+     * @var bool $skipPresenter
+     */
+    protected bool $skipPresenter = false;
+
+    /**
      * @param Model $model
      */
     public function __construct(Model $model)
     {
         $this->model = $model;
         $this->criteria = new Collection();
+        $this->makePresenter();
 
         $this->boot();
     }
@@ -70,11 +85,13 @@ abstract class AbstractRepository implements RepositoryInterface, RepositoryCrit
     }
 
     /** @inheritDoc */
-    public function all(array $columns = ['*']): Collection
+    public function all(array $columns = ['*']): array|Collection
     {
         $this->applyCriteria();
 
-        return $this->model instanceof Builder ? $this->model->get($columns) : $this->model::all($columns);
+        $result = $this->model instanceof Builder ? $this->model->get($columns) : $this->model::all($columns);
+
+        return $this->parserResult($result);
     }
 
     /** @inheritDoc */
@@ -82,7 +99,9 @@ abstract class AbstractRepository implements RepositoryInterface, RepositoryCrit
     {
         $this->applyCriteria();
 
-        return $this->model->paginate($limit, $columns)->appends(['limit' => $limit]);
+        $result = $this->model->paginate($limit, $columns)->appends(['limit' => $limit]);
+
+        return $this->parserResult($result);
     }
 
     /** @inheritDoc */
@@ -90,7 +109,9 @@ abstract class AbstractRepository implements RepositoryInterface, RepositoryCrit
     {
         $this->applyCriteria();
 
-        return $this->model->first($columns);
+        $result = $this->model->first($columns);
+
+        return $this->parserResult($result);
     }
 
     /** @inheritDoc */
@@ -98,7 +119,9 @@ abstract class AbstractRepository implements RepositoryInterface, RepositoryCrit
     {
         $this->applyCriteria();
 
-        return $this->model->latest('id')->first($columns);
+        $result = $this->model->latest('id')->first($columns);
+
+        return $this->parserResult($result);
     }
 
     /**
@@ -115,7 +138,7 @@ abstract class AbstractRepository implements RepositoryInterface, RepositoryCrit
             throw new ModelNotFoundException();
         }
 
-        return $model;
+        return $this->parserResult($model);
     }
 
     /** @inheritDoc */
@@ -123,7 +146,9 @@ abstract class AbstractRepository implements RepositoryInterface, RepositoryCrit
     {
         $this->applyCriteria();
 
-        return $this->model->where($field, '=', $value)->get($columns);
+        $result = $this->model->where($field, '=', $value)->get($columns);
+
+        return $this->parserResult($result);
     }
 
     /** @inheritDoc */
@@ -131,7 +156,9 @@ abstract class AbstractRepository implements RepositoryInterface, RepositoryCrit
     {
         $this->applyCriteria();
 
-        return $this->model->where($where)->get($columns);
+        $result = $this->model->where($where)->get($columns);
+
+        return $this->parserResult($result);
     }
 
     /** @inheritDoc */
@@ -139,7 +166,9 @@ abstract class AbstractRepository implements RepositoryInterface, RepositoryCrit
     {
         $this->applyCriteria();
 
-        return $this->model->whereIn($field, $values)->get($columns);
+        $result = $this->model->whereIn($field, $values)->get($columns);
+
+        return $this->parserResult($result);
     }
 
     /** @inheritDoc */
@@ -147,7 +176,9 @@ abstract class AbstractRepository implements RepositoryInterface, RepositoryCrit
     {
         $this->applyCriteria();
 
-        return $this->model->whereNotIn($field, $where)->get($columns);
+        $result = $this->model->whereNotIn($field, $where)->get($columns);
+
+        return $this->parserResult($result);
     }
 
     /** @inheritDoc */
@@ -155,13 +186,17 @@ abstract class AbstractRepository implements RepositoryInterface, RepositoryCrit
     {
         $this->applyCriteria();
 
-        return $this->model->whereBetween($field, $where)->get($columns);
+        $result = $this->model->whereBetween($field, $where)->get($columns);
+
+        return $this->parserResult($result);
     }
 
     /** @inheritDoc */
     public function create(array $attributes)
     {
-        return $this->model->create($attributes);
+        $result = $this->model->create($attributes);
+
+        return $this->parserResult($result);
     }
 
     /**
@@ -171,6 +206,10 @@ abstract class AbstractRepository implements RepositoryInterface, RepositoryCrit
     public function delete(int $id)
     {
         $model = $this->find($id);
+
+        if (!$model) {
+            throw new ModelNotFoundException();
+        }
 
         $model->delete();
 
@@ -188,15 +227,19 @@ abstract class AbstractRepository implements RepositoryInterface, RepositoryCrit
      */
     public function update(array $attributes, int $id)
     {
-        $model = $this->find($id);
+        $model = $this->model->find($id);
+
+        if (!$model) {
+            throw new ModelNotFoundException();
+        }
 
         $model->update($attributes);
 
-        return $model;
+        return $this->parserResult($model);
     }
 
     /** @inheritDoc */
-    public function orderBy(string $column, string $direction = 'ASC')
+    public function orderBy(string $column, string $direction = 'ASC'): static
     {
         $this->model = $this->model->orderBy($column, $direction);
 
@@ -279,5 +322,48 @@ abstract class AbstractRepository implements RepositoryInterface, RepositoryCrit
         $this->criteria = new Collection();
 
         return $this;
+    }
+
+    /**
+     * @return PresenterInterface
+     */
+    abstract public function presenter(): PresenterInterface;
+
+    /**
+     * @param string|PresenterInterface|null $presenter
+     * @return PresenterInterface|null
+     */
+    public function makePresenter(null|string|PresenterInterface $presenter = null): ?PresenterInterface
+    {
+        $presenter = !is_null($presenter) ? $presenter : $this->presenter();
+
+        if (is_null($presenter)) return null;
+
+        $this->presenter = is_string($presenter) ? app($presenter) : $presenter;
+
+        return $this->presenter;
+    }
+
+    /**
+     * @param bool $status
+     * @return $this
+     */
+    public function skipPresenter(bool $status = true): static
+    {
+        $this->skipPresenter = $status;
+
+        return $this;
+    }
+
+    /**
+     * @param $result
+     */
+    public function parserResult($result)
+    {
+        if ($this->skipPresenter) {
+            return $result;
+        }
+
+        return $this->presenter->present($result);
     }
 }

@@ -127,6 +127,8 @@ interface RepositoryInterface
      *
      * @param string $column
      * @param string $direction
+     *
+     * @return static
      */
-    public function orderBy(string $column, string $direction = 'ASC');
+    public function orderBy(string $column, string $direction = 'ASC'): static;
 }
