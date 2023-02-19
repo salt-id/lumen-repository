@@ -93,7 +93,7 @@ abstract class FractalPresenter implements PresenterInterface
     }
 
     protected function transformCollection($data): Collection
-    {;
+    {
         return new Collection($data, $this->getTransformer(), $this->resourceKeyCollection);
     }
 
