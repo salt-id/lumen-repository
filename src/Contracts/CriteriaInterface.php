@@ -10,10 +10,10 @@ interface CriteriaInterface
     /**
      * Apply criteria in query repository
      *
-     * @param Model $model
+     * @param Builder|Model $model
      * @param RepositoryInterface $repository
      *
      * @return Builder|Model
      */
-    public function apply(Model $model, RepositoryInterface $repository): Builder|Model;
+    public function apply(Builder|Model $model, RepositoryInterface $repository): Builder|Model;
 }

@@ -10,14 +10,16 @@ use SaltId\LumenRepository\Contracts\RepositoryInterface;
 
 abstract class AbstractCriteria implements CriteriaInterface
 {
+    /** @var Request $request */
     protected Request $request;
 
     public function __construct()
     {
-        $this->request = app('request');
+        $this->request = Request::createFromGlobals();
     }
 
-    public function apply(Model $model, RepositoryInterface $repository): Builder|Model
+    /** @inheritDoc */
+    public function apply(Builder|Model $model, RepositoryInterface $repository): Builder|Model
     {
         return $model;
     }

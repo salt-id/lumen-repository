@@ -14,6 +14,11 @@ use SaltId\LumenRepository\Exceptions\ModelNotFoundException;
 abstract class AbstractRepository implements RepositoryInterface, RepositoryCriteriaInterface
 {
     /**
+     * @var array|string[] $searchableFields
+     */
+    protected array $searchableFields = [];
+
+    /**
      * @var Builder|Model $model
      */
     protected Builder|Model $model;
@@ -216,6 +221,7 @@ abstract class AbstractRepository implements RepositoryInterface, RepositoryCrit
         return $model;
     }
 
+    /** @inheritDoc */
     public function deleteWhere(array $where)
     {
         return $this->model->where($where)->delete();
@@ -324,10 +330,16 @@ abstract class AbstractRepository implements RepositoryInterface, RepositoryCrit
         return $this;
     }
 
+    /** @inheritDoc */
+    public function getSearchableFields(): array
+    {
+        return $this->searchableFields;
+    }
+
     /**
-     * @return PresenterInterface
+     * @return PresenterInterface|null
      */
-    abstract public function presenter(): PresenterInterface;
+    abstract public function presenter(): ?PresenterInterface;
 
     /**
      * @param string|PresenterInterface|null $presenter
@@ -346,7 +358,8 @@ abstract class AbstractRepository implements RepositoryInterface, RepositoryCrit
 
     /**
      * @param bool $status
-     * @return $this
+     *
+     * @return static
      */
     public function skipPresenter(bool $status = true): static
     {

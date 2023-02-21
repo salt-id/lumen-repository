@@ -131,4 +131,11 @@ interface RepositoryInterface
      * @return static
      */
     public function orderBy(string $column, string $direction = 'ASC'): static;
+
+    /**
+     * Get Searchable Fields
+     *
+     * @return array
+     */
+    public function getSearchableFields(): array;
 }
