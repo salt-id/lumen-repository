@@ -238,11 +238,12 @@ class RepositoryServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        $this->app->when(ArticleController::class)
-        ->needs(RepositoryInterface::class)
-        ->give(function() {
-            return new ArticleRepository(new Article());
-        });
+        $this->app
+            ->when(ArticleController::class)
+            ->needs(RepositoryInterface::class)
+            ->give(function() {
+                return new ArticleRepository(new Article());
+            });
     }
 }
 
